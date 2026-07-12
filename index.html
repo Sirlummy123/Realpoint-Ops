@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RealPoint Streaming — Ops Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0F1C;
+    --panel:#121A2B;
+    --panel-alt:#17213A;
+    --border:#243051;
+    --border-soft:#1C2740;
+    --text:#E8ECF4;
+    --text-muted:#8C99B8;
+    --text-dim:#5C6989;
+    --accent:#3FE6C4;
+    --accent-dim:#1F4A45;
+    --flag:#FF6B4A;
+    --flag-dim:#4A2A20;
+    --success:#58D68D;
+    --warning:#F4C542;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    background-image:radial-gradient(circle, #1a2440 1px, transparent 1px);
+    background-size:26px 26px;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- LAYOUT ---------- */
+  #app{display:flex; min-height:100vh;}
+
+  /* Sidebar */
+  #sidebar{
+    width:230px; flex-shrink:0;
+    background:linear-gradient(180deg, var(--panel), var(--bg));
+    border-right:1px solid var(--border-soft);
+    padding:22px 16px;
+    display:flex; flex-direction:column;
+    position:sticky; top:0; height:100vh;
+  }
+  .brand{margin-bottom:28px;}
+  .brand .name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; letter-spacing:0.5px;}
+  .brand .name span{color:var(--accent);}
+  .brand .tag{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:1.5px; margin-top:2px;}
+
+  nav{display:flex; flex-direction:column; gap:4px; flex:1;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:8px; cursor:pointer;
+    color:var(--text-muted); font-size:13.5px; font-weight:500;
+    border:1px solid transparent;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .nav-item .ch{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); width:34px; flex-shrink:0;}
+  .nav-item:hover{background:var(--panel-alt); color:var(--text);}
+  .nav-item.active{background:var(--accent-dim); color:var(--accent); border-color:#2A5F58;}
+  .nav-item.active .ch{color:var(--accent);}
+
+  .sidebar-footer{font-size:10.5px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; padding-top:14px; border-top:1px solid var(--border-soft); line-height:1.6;}
+  .sidebar-footer button{
+    margin-top:10px; width:100%; background:none; border:1px solid var(--border); color:var(--text-muted);
+    padding:7px; border-radius:7px; font-size:11px; cursor:pointer; font-family:'JetBrains Mono',monospace;
+  }
+  .sidebar-footer button:hover{border-color:var(--accent); color:var(--accent);}
+
+  /* Main */
+  #main{flex:1; padding:28px 36px 60px; max-width:1180px;}
+  .page-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; flex-wrap:wrap; gap:12px;}
+  .page-head h1{font-family:'Space Grotesk',sans-serif; font-size:24px; margin:0 0 4px; letter-spacing:0.3px;}
+  .page-head p{color:var(--text-muted); font-size:13px; margin:0; max-width:560px;}
+  .page-eyebrow{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--accent); letter-spacing:2px; margin-bottom:6px;}
+
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+
+  /* Cards / Panels */
+  .panel{background:var(--panel); border:1px solid var(--border-soft); border-radius:var(--radius); padding:20px; margin-bottom:20px;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap;}
+  .panel-head h2{font-family:'Space Grotesk',sans-serif; font-size:15px; margin:0; letter-spacing:0.3px;}
+  .panel-head .sub{color:var(--text-dim); font-size:11.5px; margin-top:2px;}
+
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  @media(max-width:820px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+  /* KPI cards on overview */
+  .kpi-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:20px;}
+  .kpi{background:var(--panel); border:1px solid var(--border-soft); border-radius:var(--radius); padding:16px 18px; position:relative; overflow:hidden;}
+  .kpi::before{content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:var(--accent); opacity:.7;}
+  .kpi .label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;}
+  .kpi .value{font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:600;}
+  .kpi .value.flag{color:var(--flag);}
+  .kpi .value.good{color:var(--success);}
+
+  /* Form fields */
+  label{display:block; font-size:11.5px; color:var(--text-muted); margin-bottom:5px; font-weight:500;}
+  input, select, textarea{
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:7px; font-size:13px; font-family:'Inter',sans-serif;
+    outline:none; transition:border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus{border-color:var(--accent);}
+  textarea{resize:vertical; min-height:70px; font-family:'JetBrains Mono',monospace; font-size:12.5px;}
+  .field{margin-bottom:14px;}
+
+  button.btn{
+    background:var(--accent); color:#04211C; border:none; padding:9px 16px; border-radius:7px;
+    font-size:12.5px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;
+    transition:opacity .15s;
+  }
+  button.btn:hover{opacity:.85;}
+  button.btn.ghost{background:transparent; border:1px solid var(--border); color:var(--text-muted);}
+  button.btn.ghost:hover{border-color:var(--accent); color:var(--accent);}
+  button.btn.small{padding:5px 10px; font-size:11.5px;}
+  button.btn.danger{background:transparent; border:1px solid var(--flag-dim); color:var(--flag);}
+  button.btn.danger:hover{background:var(--flag-dim);}
+
+  /* Tables */
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th{text-align:left; color:var(--text-dim); font-weight:600; font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; padding:8px 10px; border-bottom:1px solid var(--border);}
+  td{padding:10px; border-bottom:1px solid var(--border-soft); vertical-align:top;}
+  tr:hover td{background:var(--panel-alt);}
+  .row-actions{display:flex; gap:6px; white-space:nowrap;}
+  .empty-row td{color:var(--text-dim); text-align:center; padding:26px; font-style:italic; font-size:12px;}
+
+  .badge{display:inline-block; padding:3px 9px; border-radius:20px; font-size:10.5px; font-weight:600; font-family:'JetBrains Mono',monospace;}
+  .badge.ok{background:var(--accent-dim); color:var(--accent);}
+  .badge.warn{background:#3d3620; color:var(--warning);}
+  .badge.bad{background:var(--flag-dim); color:var(--flag);}
+  .badge.neutral{background:var(--panel-alt); color:var(--text-muted); border:1px solid var(--border);}
+
+  /* Modal */
+  #modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(5,8,16,0.7); backdrop-filter:blur(2px);
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  #modal-overlay.open{display:flex;}
+  #modal{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:24px;
+    width:100%; max-width:480px; max-height:88vh; overflow-y:auto;
+  }
+  #modal h3{font-family:'Space Grotesk',sans-serif; margin:0 0 18px; font-size:16px;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px; border-top:1px solid var(--border-soft); padding-top:16px;}
+
+  .toast{
+    position:fixed; bottom:22px; right:22px; background:var(--panel); border:1px solid var(--accent);
+    color:var(--accent); padding:11px 18px; border-radius:8px; font-size:12.5px; font-family:'JetBrains Mono',monospace;
+    z-index:200; opacity:0; transform:translateY(8px); transition:all .25s; pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
+
+  .divider{height:1px; background:var(--border-soft); margin:20px 0;}
+  .hint{font-size:11px; color:var(--text-dim); margin-top:-6px; margin-bottom:14px;}
+  .stack-item{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-soft); font-size:12.5px;}
+  .stack-item .k{color:var(--text-muted);}
+  .stack-item .v{font-family:'JetBrains Mono',monospace; text-align:right;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="name">REAL<span>POINT</span></div>
+      <div class="tag">STREAMING · OPS CONSOLE</div>
+    </div>
+    <nav id="nav">
+      <div class="nav-item active" data-tab="overview"><span class="ch">CH.00</span> Overview</div>
+      <div class="nav-item" data-tab="technology"><span class="ch">CH.01</span> Technology</div>
+      <div class="nav-item" data-tab="contents"><span class="ch">CH.02</span> Contents</div>
+      <div class="nav-item" data-tab="monetization"><span class="ch">CH.03</span> Monetization</div>
+      <div class="nav-item" data-tab="marketing"><span class="ch">CH.04</span> Marketing</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="last-saved">NOT SAVED YET</div>
+      <button id="export-btn">↓ EXPORT JSON</button>
+      <button id="import-btn">↑ IMPORT JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none;">
+    </div>
+  </aside>
+
+  <main id="main">
+
+    <!-- OVERVIEW -->
+    <section class="tab-content active" id="tab-overview">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">SIGNAL / 00</div>
+          <h1>Business Overview</h1>
+          <p>Live snapshot of RealPoint Streaming, pulled from the Technology, Contents, Monetization and Marketing logs.</p>
+        </div>
+      </div>
+
+      <div class="kpi-row" id="overview-kpis"></div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><h2>Contracts expiring soon</h2></div>
+          <div style="overflow-x:auto;"><table id="overview-expiring"><thead><tr><th>Creator</th><th>Expires</th><th>Renewal</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Open flags</h2></div>
+          <div style="overflow-x:auto;"><table id="overview-flags"><thead><tr><th>Content</th><th>Location</th><th>Reason</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TECHNOLOGY -->
+    <section class="tab-content" id="tab-technology">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">SIGNAL / 01</div>
+          <h1>Technology</h1>
+          <p>Stack, architecture, third-party integrations and access tokens powering the platform.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Tech stack</h2><div class="sub">Frontend, backend, media pipeline, storage, CDN, video compliance</div></div>
+        <div class="grid-3" id="stack-fields"></div>
+        <button class="btn" id="save-stack" style="margin-top:6px;">Save stack</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Product architecture</h2><div class="sub">Notes, diagrams (as text), key design decisions</div></div>
+        <textarea id="architecture-notes" placeholder="Describe the product architecture — services, data flow, key decisions..."></textarea>
+        <button class="btn" id="save-architecture" style="margin-top:10px;">Save notes</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Third-party integrations</h2><div class="sub">Payment, analytics, DRM, transcoding, auth, etc.</div></div>
+          <button class="btn small" data-add="integration">+ Add integration</button>
+        </div>
+        <div style="overflow-x:auto;"><table id="table-integrations"><thead><tr><th>Name</th><th>Purpose</th><th>Status</th><th>Contact</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Tokens</h2><div class="sub">API keys / access tokens — track status &amp; expiry, not the secret itself</div></div>
+          <button class="btn small" data-add="token">+ Add token</button>
+        </div>
+        <div style="overflow-x:auto;"><table id="table-tokens"><thead><tr><th>Name</th><th>Type</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- CONTENTS -->
+    <section class="tab-content" id="tab-contents">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">SIGNAL / 02</div>
+          <h1>Contents</h1>
+          <p>Creators, contracts, distribution regions, performance and revenue split.</p>
+        </div>
+        <button class="btn" data-add="creator">+ Add creator / content</button>
+      </div>
+
+      <div class="panel">
+        <div style="overflow-x:auto;">
+        <table id="table-contents">
+          <thead><tr>
+            <th>Creator</th><th>Contract</th><th>Expires</th><th>Monetization model</th>
+            <th>Regions</th><th>Performance</th><th>Revenue</th><th>Split sheet</th><th>Renewal</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- MONETIZATION -->
+    <section class="tab-content" id="tab-monetization">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">SIGNAL / 03</div>
+          <h1>Monetization</h1>
+          <p>Model, performance by geography, flagged content, and the budget ledger.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Monetization model</h2><div class="sub">Overall approach — subscription, AVOD, pay-per-view, hybrid...</div></div>
+        <textarea id="monetization-model" placeholder="Describe the monetization model(s) in use..."></textarea>
+        <button class="btn" id="save-model" style="margin-top:10px;">Save</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Performance by geography</h2><div class="sub">Country, state, region or continent level</div></div>
+          <button class="btn small" data-add="performance">+ Add entry</button>
+        </div>
+        <div style="overflow-x:auto;"><table id="table-performance"><thead><tr><th>Location</th><th>Level</th><th>Metric</th><th>Revenue</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Flagged content</h2><div class="sub">Content restricted or reported in a state, country or region</div></div>
+          <button class="btn small" data-add="flag">+ Add flag</button>
+        </div>
+        <div style="overflow-x:auto;"><table id="table-flags"><thead><tr><th>Content</th><th>Location</th><th>Reason</th><th>Resolution</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Budget &amp; profit ledger</h2><div class="sub">Currency symbol used across the console</div></div>
+        <div class="field" style="max-width:120px;"><label>Currency</label><input type="text" id="currency-symbol" maxlength="4"></div>
+        <div class="grid-3" id="budget-fields"></div>
+        <div class="divider"></div>
+        <div class="stack-item"><span class="k">Total costs (acquisition + tech ops + salaries + API fees + partners paid)</span><span class="v" id="budget-total-cost">—</span></div>
+        <div class="stack-item"><span class="k">Revenue paid in</span><span class="v" id="budget-revenue">—</span></div>
+        <div class="stack-item"><span class="k" style="font-weight:600;">Profit earned</span><span class="v" id="budget-profit" style="font-weight:700;">—</span></div>
+        <button class="btn" id="save-budget" style="margin-top:14px;">Save budget</button>
+      </div>
+    </section>
+
+    <!-- MARKETING -->
+    <section class="tab-content" id="tab-marketing">
+      <div class="page-head">
+        <div>
+          <div class="page-eyebrow">SIGNAL / 04</div>
+          <h1>Marketing</h1>
+          <p>Budget and KPI tracking for the business.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Marketing budget</h2></div>
+        <div class="field" style="max-width:220px;"><label>Total budget</label><input type="number" id="marketing-budget" step="0.01"></div>
+        <button class="btn" id="save-marketing-budget">Save</button>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>KPI tracking</h2></div>
+          <button class="btn small" data-add="kpi">+ Add KPI</button>
+        </div>
+        <div style="overflow-x:auto;"><table id="table-kpis"><thead><tr><th>KPI</th><th>Target</th><th>Actual</th><th>Period</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <h3 id="modal-title">Add record</h3>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="modal-cancel">Cancel</button>
+      <button class="btn" id="modal-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================= DATA LAYER ============================= */
+const STORAGE_KEY = 'realpoint_ops_data_v1';
+
+function defaultData(){
+  return {
+    settings:{ currency:'$' },
+    technology:{
+      stack:{ frontend:'', backend:'', mediaPipeline:'', storage:'', cdn:'', videoCompliance:'' },
+      architecture:'',
+      integrations:[],
+      tokens:[]
+    },
+    contents:[],
+    monetization:{
+      model:'',
+      performance:[],
+      flagged:[],
+      budget:{ contentAcquisition:0, techOps:0, salaries:0, apiFees:0, revenuePaid:0, partnersPaid:0 }
+    },
+    marketing:{ budget:0, kpis:[] }
+  };
+}
+
+let DATA = defaultData();
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      // shallow-merge with defaults so new fields don't break old saves
+      DATA = Object.assign(defaultData(), parsed);
+      DATA.technology = Object.assign(defaultData().technology, parsed.technology||{});
+      DATA.technology.stack = Object.assign(defaultData().technology.stack, (parsed.technology||{}).stack||{});
+      DATA.monetization = Object.assign(defaultData().monetization, parsed.monetization||{});
+      DATA.monetization.budget = Object.assign(defaultData().monetization.budget, (parsed.monetization||{}).budget||{});
+      DATA.marketing = Object.assign(defaultData().marketing, parsed.marketing||{});
+      DATA.settings = Object.assign(defaultData().settings, parsed.settings||{});
+    }
+  }catch(e){
+    console.error('Load failed, starting fresh.', e);
+    DATA = defaultData();
+  }
+}
+
+function saveData(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+    document.getElementById('last-saved').textContent = 'SAVED ' + new Date().toLocaleTimeString();
+    return true;
+  }catch(e){
+    console.error('Save failed', e);
+    showToast('Save failed — storage may be full or blocked.');
+    return false;
+  }
+}
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ============================= UTIL ============================= */
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function fmtMoney(n){
+  const c = (DATA.settings && DATA.settings.currency) || '$';
+  const num = Number(n)||0;
+  return c + num.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function escapeHtml(s){
+  if(s===undefined||s===null) return '';
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr);
+  if(isNaN(d)) return null;
+  return Math.ceil((d - new Date())/(1000*60*60*24));
+}
+
+/* ============================= NAV ============================= */
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    item.classList.add('active');
+    document.getElementById('tab-'+item.dataset.tab).classList.add('active');
+    if(item.dataset.tab === 'overview') renderOverview();
+  });
+});
+
+/* ============================= MODAL ============================= */
+let modalContext = null; // {fields, onSave, existing}
+
+function openModal(title, fields, existing, onSave){
+  modalContext = {fields, onSave, existing: existing||{}};
+  document.getElementById('modal-title').textContent = title;
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+  fields.forEach(f=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    const label = document.createElement('label');
+    label.textContent = f.label;
+    wrap.appendChild(label);
+    let input;
+    if(f.type === 'select'){
+      input = document.createElement('select');
+      f.options.forEach(o=>{
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
+        input.appendChild(opt);
+      });
+    } else if(f.type === 'textarea'){
+      input = document.createElement('textarea');
+    } else {
+      input = document.createElement('input');
+      input.type = f.type || 'text';
+      if(f.step) input.step = f.step;
+    }
+    input.id = 'modal-field-' + f.key;
+    input.value = (modalContext.existing[f.key] !== undefined) ? modalContext.existing[f.key] : (f.default !== undefined ? f.default : '');
+    wrap.appendChild(input);
+    if(f.hint){
+      const hint = document.createElement('div');
+      hint.className = 'hint';
+      hint.textContent = f.hint;
+      wrap.appendChild(hint);
+    }
+    body.appendChild(wrap);
+  });
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalContext = null;
+}
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e=>{
+  if(e.target.id === 'modal-overlay') closeModal();
+});
+document.getElementById('modal-save').addEventListener('click', ()=>{
+  if(!modalContext) return;
+  const result = {};
+  modalContext.fields.forEach(f=>{
+    const el = document.getElementById('modal-field-' + f.key);
+    result[f.key] = (f.type === 'number') ? (parseFloat(el.value)||0) : el.value;
+  });
+  modalContext.onSave(result);
+  closeModal();
+});
+
+/* ============================= GENERIC TABLE RENDER ============================= */
+function renderRows(tbodyId, rows, columns, editFn, deleteFn){
+  const tbody = document.querySelector('#'+tbodyId+' tbody');
+  tbody.innerHTML = '';
+  if(!rows || rows.length === 0){
+    const colspan = columns.length + 1;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colspan}">No records yet.</td></tr>`;
+    return;
+  }
+  rows.forEach(row=>{
+    const tr = document.createElement('tr');
+    let cells = columns.map(c => `<td>${c.render ? c.render(row[c.key], row) : escapeHtml(row[c.key])}</td>`).join('');
+    cells += `<td class="row-actions">
+      <button class="btn ghost small" data-edit="${row.id}">Edit</button>
+      <button class="btn danger small" data-del="${row.id}">Delete</button>
+    </td>`;
+    tr.innerHTML = cells;
+    tr.querySelector('[data-edit]').addEventListener('click', ()=>editFn(row.id));
+    tr.querySelector('[data-del]').addEventListener('click', ()=>{
+      if(confirm('Delete this record?')) deleteFn(row.id);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+function statusBadge(val, map){
+  const cls = (map && map[val]) || 'neutral';
+  return `<span class="badge ${cls}">${escapeHtml(val||'—')}</span>`;
+}
+
+/* ============================= TECHNOLOGY: STACK ============================= */
+const STACK_FIELDS = [
+  {key:'frontend', label:'Frontend'},
+  {key:'backend', label:'Backend'},
+  {key:'mediaPipeline', label:'Media pipeline'},
+  {key:'storage', label:'Storage'},
+  {key:'cdn', label:'CDN'},
+  {key:'videoCompliance', label:'Video compliance'}
+];
+function renderStackFields(){
+  const c = document.getElementById('stack-fields');
+  c.innerHTML = '';
+  STACK_FIELDS.forEach(f=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = `<label>${f.label}</label><input type="text" id="stack-${f.key}" value="${escapeHtml(DATA.technology.stack[f.key])}">`;
+    c.appendChild(wrap);
+  });
+}
+document.getElementById('save-stack').addEventListener('click', ()=>{
+  STACK_FIELDS.forEach(f=>{
+    DATA.technology.stack[f.key] = document.getElementById('stack-'+f.key).value;
+  });
+  saveData();
+  showToast('Tech stack saved');
+});
+document.getElementById('save-architecture').addEventListener('click', ()=>{
+  DATA.technology.architecture = document.getElementById('architecture-notes').value;
+  saveData();
+  showToast('Architecture notes saved');
+});
+
+/* ============================= TECHNOLOGY: INTEGRATIONS ============================= */
+const INTEGRATION_FIELDS = [
+  {key:'name', label:'Integration name'},
+  {key:'purpose', label:'Purpose'},
+  {key:'status', label:'Status', type:'select', options:['Active','Pending','Deprecated']},
+  {key:'contact', label:'Contact / owner'}
+];
+function renderIntegrations(){
+  renderRows('table-integrations', DATA.technology.integrations,
+    [
+      {key:'name'},
+      {key:'purpose'},
+      {key:'status', render:v=>statusBadge(v,{Active:'ok',Pending:'warn',Deprecated:'bad'})},
+      {key:'contact'}
+    ],
+    editIntegration, id=>{
+      DATA.technology.integrations = DATA.technology.integrations.filter(r=>r.id!==id);
+      saveData(); renderIntegrations();
+    }
+  );
+}
+function editIntegration(id){
+  const rec = id ? DATA.technology.integrations.find(r=>r.id===id) : {};
+  openModal(id?'Edit integration':'Add integration', INTEGRATION_FIELDS, rec, data=>{
+    if(id){ Object.assign(rec, data); }
+    else { data.id = uid(); DATA.technology.integrations.push(data); }
+    saveData(); renderIntegrations();
+    showToast('Integration saved');
+  });
+}
+
+/* ============================= TECHNOLOGY: TOKENS ============================= */
+const TOKEN_FIELDS = [
+  {key:'name', label:'Token name'},
+  {key:'type', label:'Type (API key, OAuth, DRM license, etc.)'},
+  {key:'expiry', label:'Expiry date', type:'date'},
+  {key:'status', label:'Status', type:'select', options:['Active','Expired','Revoked']}
+];
+function renderTokens(){
+  renderRows('table-tokens', DATA.technology.tokens,
+    [
+      {key:'name'},
+      {key:'type'},
+      {key:'expiry'},
+      {key:'status', render:v=>statusBadge(v,{Active:'ok',Expired:'bad',Revoked:'bad'})}
+    ],
+    editToken, id=>{
+      DATA.technology.tokens = DATA.technology.tokens.filter(r=>r.id!==id);
+      saveData(); renderTokens();
+    }
+  );
+}
+function editToken(id){
+  const rec = id ? DATA.technology.tokens.find(r=>r.id===id) : {};
+  openModal(id?'Edit token':'Add token', TOKEN_FIELDS, rec, data=>{
+    if(id){ Object.assign(rec, data); }
+    else { data.id = uid(); DATA.technology.tokens.push(data); }
+    saveData(); renderTokens();
+    showToast('Token saved');
+  });
+}
+
+/* ============================= CONTENTS ============================= */
+const CONTENT_FIELDS = [
+  {key:'creator', label:'Content creator'},
+  {key:'contractName', label:'Contract reference / name'},
+  {key:'contractExpiry', label:'Contract expiration date & time', type:'datetime-local'},
+  {key:'monetizationModel', label:'Monetization model agreed'},
+  {key:'regions', label:'Regions available for distribution', hint:'Comma separated, e.g. NG, GH, UK'},
+  {key:'performance', label:'Content performance', hint:'e.g. views, watch hours'},
+  {key:'revenue', label:'Revenue generated', type:'number', step:'0.01'},
+  {key:'splitSheet', label:'Split sheet', hint:'e.g. 70/30 creator/platform'},
+  {key:'renewalOption', label:'Renewal option', type:'select', options:['Yes','No','Pending','Auto-renew']}
+];
+function renderContents(){
+  const c = (DATA.settings.currency)||'$';
+  renderRows('table-contents', DATA.contents,
+    [
+      {key:'creator'},
+      {key:'contractName'},
+      {key:'contractExpiry', render:v=>{
+        if(!v) return '—';
+        const d = daysUntil(v);
+        const soon = d!==null && d<=30 && d>=0;
+        const overdue = d!==null && d<0;
+        const label = new Date(v).toLocaleString();
+        if(overdue) return `<span style="color:var(--flag)">${label}</span>`;
+        if(soon) return `<span style="color:var(--warning)">${label}</span>`;
+        return label;
+      }},
+      {key:'monetizationModel'},
+      {key:'regions'},
+      {key:'performance'},
+      {key:'revenue', render:v=>fmtMoney(v)},
+      {key:'splitSheet'},
+      {key:'renewalOption', render:v=>statusBadge(v,{Yes:'ok','Auto-renew':'ok', Pending:'warn', No:'bad'})}
+    ],
+    editContent, id=>{
+      DATA.contents = DATA.contents.filter(r=>r.id!==id);
+      saveData(); renderContents(); renderOverview();
+    }
+  );
+}
+function editContent(id){
+  const rec = id ? DATA.contents.find(r=>r.id===id) : {};
+  openModal(id?'Edit content record':'Add creator / content', CONTENT_FIELDS, rec, data=>{
+    if(id){ Object.assign(rec, data); }
+    else { data.id = uid(); DATA.contents.push(data); }
+    saveData(); renderContents(); renderOverview();
+    showToast('Content record saved');
+  });
+}
+
+/* ============================= MONETIZATION: MODEL ============================= */
+document.getElementById('save-model').addEventListener('click', ()=>{
+  DATA.monetization.model = document.getElementById('monetization-model').value;
+  saveData();
+  showToast('Monetization model saved');
+});
+
+/* ============================= MONETIZATION: PERFORMANCE ============================= */
+const PERFORMANCE_FIELDS = [
+  {key:'location', label:'Location name'},
+  {key:'level', label:'Level', type:'select', options:['Country','State','Region','Continent']},
+  {key:'metric', label:'Performance metric', hint:'e.g. 12,400 views / 3,200 watch hours'},
+  {key:'revenue', label:'Revenue', type:'number', step:'0.01'}
+];
+function renderPerformance(){
+  renderRows('table-performance', DATA.monetization.performance,
+    [
+      {key:'location'},
+      {key:'level', render:v=>statusBadge(v,{Country:'neutral',State:'neutral',Region:'neutral',Continent:'neutral'})},
+      {key:'metric'},
+      {key:'revenue', render:v=>fmtMoney(v)}
+    ],
+    editPerformance, id=>{
+      DATA.monetization.performance = DATA.monetization.performance.filter(r=>r.id!==id);
+      saveData(); renderPerformance(); renderOverview();
+    }
+  );
+}
+function editPerformance(id){
+  const rec = id ? DATA.monetization.performance.find(r=>r.id===id) : {};
+  openModal(id?'Edit performance entry':'Add performance entry', PERFORMANCE_FIELDS, rec, data=>{
+    if(id){ Object.assign(rec, data); }
+    else { data.id = uid(); DATA.monetization.performance.push(data); }
+    saveData(); renderPerformance(); renderOverview();
+    showToast('Performance entry saved');
+  });
+}
+
+/* ============================= MONETIZATION: FLAGGED ============================= */
+const FLAG_FIELDS = [
+  {key:'content', label:'Content'},
+  {key:'location', label:'State / Country / Region'},
+  {key:'reason', label:'Reason flagged'},
+  {key:'resolution', label:'Resolution'},
+  {key:'status', label:'Status', type:'select', options:['Open','Resolved','Under review']}
+];
+function renderFlags(){
+  renderRows('table-flags', DATA.monetization.flagged,
+    [
+      {key:'content'},
+      {key:'location'},
+      {key:'reason'},
+      {key:'resolution'},
+      {key:'status', render:v=>statusBadge(v,{Open:'bad','Under review':'warn',Resolved:'ok'})}
+    ],
+    editFlag, id=>{
+      DATA.monetization.flagged = DATA.monetization.flagged.filter(r=>r.id!==id);
+      saveData(); renderFlags(); renderOverview();
+    }
+  );
+}
+function editFlag(id){
+  const rec = id ? DATA.monetization.flagged.find(r=>r.id===id) : {};
+  openModal(id?'Edit flag':'Add flag', FLAG_FIELDS, rec, data=>{
+    if(id){ Object.assign(rec, data); }
+    else { data.id = uid(); DATA.monetization.flagged.push(data); }
+    saveData(); renderFlags(); renderOverview();
+    showToast('Flag saved');
+  });
+}
+
+/* ============================= MONETIZATION: BUDGET ============================= */
+const BUDGET_FIELDS = [
+  {key:'contentAcquisition', label:'Content acquisition budget'},
+  {key:'techOps', label:'Technology management (operations)'},
+  {key:'salaries', label:'Salaries'},
+  {key:'apiFees', label:'Third-party (API) fees'},
+  {key:'revenuePaid', label:'Revenue paid (income received)'},
+  {key:'partnersPaid', label:'Partners paid'}
+];
+function renderBudgetFields(){
+  document.getElementById('currency-symbol').value = DATA.settings.currency;
+  const c = document.getElementById('budget-fields');
+  c.innerHTML = '';
+  BUDGET_FIELDS.forEach(f=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'field';
+    wrap.innerHTML = `<label>${f.label}</label><input type="number" step="0.01" id="budget-${f.key}" value="${DATA.monetization.budget[f.key]||0}">`;
+    c.appendChild(wrap);
+  });
+  computeBudget();
+}
+function computeBudget(){
+  const b = DATA.monetization.budget;
+  const totalCost = (Number(b.contentAcquisition)||0) + (Number(b.techOps)||0) + (Number(b.salaries)||0) + (Number(b.apiFees)||0) + (Number(b.partnersPaid)||0);
+  const revenue = Number(b.revenuePaid)||0;
+  const profit = revenue - totalCost;
+  document.getElementById('budget-total-cost').textContent = fmtMoney(totalCost);
+  document.getElementById('budget-revenue').textContent = fmtMoney(revenue);
+  const profitEl = document.getElementById('budget-profit');
+  profitEl.textContent = fmtMoney(profit);
+  profitEl.style.color = profit >= 0 ? 'var(--success)' : 'var(--flag)';
+}
+document.getElementById('save-budget').addEventListener('click', ()=>{
+  DATA.settings.currency = document.getElementById('currency-symbol').value || '$';
+  BUDGET_FIELDS.forEach(f=>{
+    DATA.monetization.budget[f.key] = parseFloat(document.getElementById('budget-'+f.key).value) || 0;
+  });
+  saveData();
+  computeBudget();
+  renderContents(); renderPerformance(); // refresh currency-formatted values
+  showToast('Budget saved');
+});
+
+/* ============================= MARKETING ============================= */
+document.getElementById('save-marketing-budget').addEventListener('click', ()=>{
+  DATA.marketing.budget = parseFloat(document.getElementById('marketing-budget').value)||0;
+  saveData();
+  showToast('Marketing budget saved');
+});
+const KPI_FIELDS = [
+  {key:'name', label:'KPI name'},
+  {key:'target', label:'Target'},
+  {key:'actual', label:'Actual'},
+  {key:'period', label:'Period', hint:'e.g. Q1 2026, July 2026'}
+];
+function renderKpis(){
+  renderRows('table-kpis', DATA.marketing.kpis,
+    [ {key:'name'}, {key:'target'}, {key:'actual'}, {key:'period'} ],
+    editKpi, id=>{
+      DATA.marketing.kpis = DATA.marketing.kpis.filter(r=>r.id!==id);
+      saveData(); renderKpis();
+    }
+  );
+}
+function editKpi(id){
+  const rec = id ? DATA.marketing.kpis.find(r=>r.id===id) : {};
+  openModal(id?'Edit KPI':'Add KPI', KPI_FIELDS, rec, data=>{
+    if(id){ Object.assign(rec, data); }
+    else { data.id = uid(); DATA.marketing.kpis.push(data); }
+    saveData(); renderKpis();
+    showToast('KPI saved');
+  });
+}
+
+/* ============================= ADD BUTTONS ============================= */
+document.querySelectorAll('[data-add]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const type = btn.dataset.add;
+    if(type==='integration') editIntegration(null);
+    if(type==='token') editToken(null);
+    if(type==='creator') editContent(null);
+    if(type==='performance') editPerformance(null);
+    if(type==='flag') editFlag(null);
+    if(type==='kpi') editKpi(null);
+  });
+});
+
+/* ============================= OVERVIEW ============================= */
+function renderOverview(){
+  const totalCreators = DATA.contents.length;
+  const totalContentRevenue = DATA.contents.reduce((s,r)=>s+(Number(r.revenue)||0),0);
+  const openFlags = DATA.monetization.flagged.filter(f=>f.status!=='Resolved').length;
+  const activeIntegrations = DATA.technology.integrations.filter(i=>i.status==='Active').length;
+  const b = DATA.monetization.budget;
+  const totalCost = (Number(b.contentAcquisition)||0)+(Number(b.techOps)||0)+(Number(b.salaries)||0)+(Number(b.apiFees)||0)+(Number(b.partnersPaid)||0);
+  const profit = (Number(b.revenuePaid)||0) - totalCost;
+  const marketingBudget = Number(DATA.marketing.budget)||0;
+
+  const kpis = [
+    {label:'Creators / content deals', value: totalCreators},
+    {label:'Content revenue (logged)', value: fmtMoney(totalContentRevenue)},
+    {label:'Active integrations', value: activeIntegrations},
+    {label:'Open flags', value: openFlags, cls: openFlags>0?'flag':''},
+    {label:'Profit earned', value: fmtMoney(profit), cls: profit>=0?'good':'flag'},
+    {label:'Marketing budget', value: fmtMoney(marketingBudget)}
+  ];
+  const row = document.getElementById('overview-kpis');
+  row.innerHTML = kpis.map(k=>`
+    <div class="kpi">
+      <div class="label">${k.label}</div>
+      <div class="value ${k.cls||''}">${k.value}</div>
+    </div>
+  `).join('');
+
+  // Expiring contracts (next 30 days, including overdue)
+  const expiring = DATA.contents
+    .filter(r=>r.contractExpiry)
+    .map(r=>({...r, d: daysUntil(r.contractExpiry)}))
+    .filter(r=>r.d!==null && r.d<=30)
+    .sort((a,b)=>a.d-b.d)
+    .slice(0,8);
+  const expTbody = document.querySelector('#overview-expiring tbody');
+  expTbody.innerHTML = expiring.length ? expiring.map(r=>`
+    <tr><td>${escapeHtml(r.creator)}</td>
+    <td style="color:${r.d<0?'var(--flag)':'var(--warning)'}">${new Date(r.contractExpiry).toLocaleDateString()} (${r.d<0?'overdue':r.d+'d'})</td>
+    <td>${statusBadge(r.renewalOption,{Yes:'ok','Auto-renew':'ok',Pending:'warn',No:'bad'})}</td></tr>
+  `).join('') : `<tr class="empty-row"><td colspan="3">Nothing expiring in the next 30 days.</td></tr>`;
+
+  // Open flags
+  const flagTbody = document.querySelector('#overview-flags tbody');
+  const openFlagRows = DATA.monetization.flagged.filter(f=>f.status!=='Resolved').slice(0,8);
+  flagTbody.innerHTML = openFlagRows.length ? openFlagRows.map(f=>`
+    <tr><td>${escapeHtml(f.content)}</td><td>${escapeHtml(f.location)}</td><td>${escapeHtml(f.reason)}</td></tr>
+  `).join('') : `<tr class="empty-row"><td colspan="3">No open flags.</td></tr>`;
+}
+
+/* ============================= EXPORT / IMPORT ============================= */
+document.getElementById('export-btn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `realpoint-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported');
+});
+document.getElementById('import-btn').addEventListener('click', ()=>{
+  document.getElementById('import-file').click();
+});
+document.getElementById('import-file').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    try{
+      const parsed = JSON.parse(evt.target.result);
+      DATA = Object.assign(defaultData(), parsed);
+      saveData();
+      renderAll();
+      showToast('Imported successfully');
+    }catch(err){
+      alert('Could not read that file — make sure it is a RealPoint export JSON.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* ============================= INIT ============================= */
+function renderAll(){
+  renderStackFields();
+  document.getElementById('architecture-notes').value = DATA.technology.architecture;
+  renderIntegrations();
+  renderTokens();
+  renderContents();
+  document.getElementById('monetization-model').value = DATA.monetization.model;
+  renderPerformance();
+  renderFlags();
+  renderBudgetFields();
+  document.getElementById('marketing-budget').value = DATA.marketing.budget;
+  renderKpis();
+  renderOverview();
+}
+
+loadData();
+renderAll();
+</script>
+</body>
+</html>
