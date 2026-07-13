@@ -165,9 +165,40 @@
   .stack-item{display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border-soft); font-size:12.5px;}
   .stack-item .k{color:var(--text-muted);}
   .stack-item .v{font-family:'JetBrains Mono',monospace; text-align:right;}
+
+  /* ---------- LOCK SCREEN ---------- */
+  #lock-screen{
+    position:fixed; inset:0; background:var(--bg); z-index:500;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    background-image:radial-gradient(circle, #1a2440 1px, transparent 1px);
+    background-size:26px 26px;
+  }
+  #lock-card{
+    background:var(--panel); border:1px solid var(--border-soft); border-radius:14px;
+    padding:34px 32px; width:100%; max-width:340px; text-align:center;
+  }
+  #lock-card .lock-brand{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; margin-bottom:4px;}
+  #lock-card .lock-brand span{color:var(--accent);}
+  #lock-card .lock-tag{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:1.5px; margin-bottom:24px;}
+  #lock-card input{text-align:center; letter-spacing:2px; margin-bottom:12px;}
+  #lock-card button{width:100%;}
+  #lock-error{color:var(--flag); font-size:11.5px; margin-top:10px; min-height:16px;}
+  #app-root{display:none;}
 </style>
 </head>
 <body>
+
+<div id="lock-screen">
+  <div id="lock-card">
+    <div class="lock-brand">REAL<span>POINT</span></div>
+    <div class="lock-tag">STREAMING · ACCESS REQUIRED</div>
+    <input type="password" id="lock-password" placeholder="Password" autocomplete="off">
+    <button class="btn" id="lock-submit">Unlock</button>
+    <div id="lock-error"></div>
+  </div>
+</div>
+
+<div id="app-root">
 
 <div id="app">
   <aside id="sidebar">
@@ -364,7 +395,49 @@
 
 <div class="toast" id="toast"></div>
 
+</div><!-- /#app-root -->
+
 <script>
+/* ============================= ACCESS LOCK ============================= */
+/* Set your own password below — this is a simple deterrent, not real
+   security. Anyone who views this file's source can read it, so don't
+   reuse this password anywhere sensitive. */
+const LOCK_PASSWORD = 'Damaris_@230896';
+const LOCK_STORAGE_KEY = 'realpoint_ops_unlocked_v1';
+
+function unlockApp(){
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app-root').style.display = 'block';
+}
+function tryUnlock(){
+  const entered = document.getElementById('lock-password').value;
+  const errorEl = document.getElementById('lock-error');
+  if(entered === LOCK_PASSWORD){
+    try{ localStorage.setItem(LOCK_STORAGE_KEY, '1'); }catch(e){}
+    errorEl.textContent = '';
+    unlockApp();
+  } else {
+    errorEl.textContent = 'Incorrect password.';
+    document.getElementById('lock-password').value = '';
+    document.getElementById('lock-password').focus();
+  }
+}
+document.getElementById('lock-submit').addEventListener('click', tryUnlock);
+document.getElementById('lock-password').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') tryUnlock();
+});
+(function checkExistingUnlock(){
+  try{
+    if(localStorage.getItem(LOCK_STORAGE_KEY) === '1'){
+      unlockApp();
+    } else {
+      document.getElementById('lock-password').focus();
+    }
+  }catch(e){
+    document.getElementById('lock-password').focus();
+  }
+})();
+
 /* ============================= DATA LAYER ============================= */
 const STORAGE_KEY = 'realpoint_ops_data_v1';
 
